@@ -2,16 +2,15 @@ const express = require('express');
 const cors = require('cors');
 const mongoose = require('mongoose');
 const QRCode = require('qrcode');
-const { MercadoPagoConfig, Preference } = require('mercadopago');
+
+// Importamos Stripe y lo conectamos con la llave guardada en la caja fuerte de Render
+const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
 
 const app = express();
 app.use(cors());
 app.use(express.json());
 
-// 1. Configura tu Access Token de Mercado Pago (El de producción o prueba)
-const client = new MercadoPagoConfig({ accessToken: 'TU_ACCESS_TOKEN_AQUI' });
-
-// 2. Conexión a MongoDB (Cuando crees tu cuenta en Atlas, cambiarás este link local por el de la nube)
+// 2. Conexión a MongoDB usando la variable de entorno de Render
 mongoose.connect(process.env.MONGODB_URI)
     .then(() => console.log('📦 Base de datos conectada con éxito.'))
     .catch(err => console.error('Error conectando a la BD:', err));
@@ -24,50 +23,47 @@ const Ticket = mongoose.model('Ticket', new mongoose.Schema({
     pagado: { type: Boolean, default: false }
 }));
 
-// 4. Endpoint para crear la orden de pago
+// 4. Endpoint para crear la orden de pago con Stripe
 app.post('/api/crear-pago', async (req, res) => {
     const { tipoBoleto, cantidad, emailComprador } = req.body;
     
-    // Asignamos precios. Ajusta la moneda y valor final según necesites
-    const precio = tipoBoleto === 'VIP' ? 30 : 0; 
+    // Stripe maneja los montos en centavos. 
+    // Si el boleto VIP cuesta $30 pesos, se envían 3000 centavos. Si es General, $15 pesos (1500 centavos).
+    const precio = tipoBoleto === 'VIP' ? 3000 : 1500; 
 
     try {
-        const preference = new Preference(client);
-        const respuesta = await preference.create({
-            body: {
-                items: [
-                    {
-                        id: 'boleto_proyecto_x',
-                        title: `Boleto ${tipoBoleto} - Proyecto X`,
-                        quantity: Number(cantidad),
-                        unit_price: Number(precio),
-                        currency_id: 'PEN', 
-                    }
-                ],
-                payer: {
-                    email: emailComprador
+        const session = await stripe.checkout.sessions.create({
+            payment_method_types: ['card'],
+            line_items: [
+                {
+                    price_data: {
+                        currency: 'mxn', // Moneda en pesos mexicanos para tu cuenta Nu
+                        product_data: {
+                            name: `Boleto ${tipoBoleto} - Proyecto X`,
+                        },
+                        unit_amount: precio,
+                    },
+                    quantity: Number(cantidad),
                 },
-                back_urls: {
-                    success: 'https://tusitio.com/exito',
-                    failure: 'https://tusitio.com/fallo',
-                    pending: 'https://tusitio.com/pendiente'
-                },
-                auto_return: 'approved',
-            }
+            ],
+            mode: 'payment',
+            customer_email: emailComprador || 'cliente@ejemplo.com',
+            success_url: 'https://tusitio.com/exito',
+            cancel_url: 'https://tusitio.com/fallo',
         });
 
+        // Devolvemos la URL segura de la pasarela de Stripe al Frontend
         res.json({
-            urlDePago: respuesta.init_point 
+            urlDePago: session.url 
         });
 
     } catch (error) {
-        console.error('Error al crear preferencia de Mercado Pago:', error);
+        console.error('Error con Stripe:', error);
         res.status(500).json({ error: 'Fallo al conectar con la pasarela de pagos' });
     }
 });
 
 // 5. Arranque del servidor
-// process.env.PORT es vital para Render, ya que ellos asignan el puerto dinámicamente
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
     console.log(`🚀 Servidor listo para cobrar en el puerto ${PORT}`);
