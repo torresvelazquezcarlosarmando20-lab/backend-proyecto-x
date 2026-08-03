@@ -27,14 +27,14 @@ const Ticket = mongoose.model('Ticket', new mongoose.Schema({
 app.post('/api/crear-pago', async (req, res) => {
     const { tipoBoleto, cantidad, formato, nombreComprador, telefonoComprador, emailComprador } = req.body;
     
-    let precio = 2000; 
+    let precio = 5000; // Por defecto General (50.00 MXN en centavos)
 
     if (tipoBoleto === 'VIP') {
-        precio = 10000; 
+        precio = 10000; // 100.00 MXN en centavos
     } else if (tipoBoleto === 'General') {
-        precio = 5000;  
+        precio = 5000;  // 50.00 MXN en centavos
     } else if (tipoBoleto === 'Estudiante') {
-        precio = 2500;  
+        precio = 2500;  // 25.00 MXN en centavos
     }
 
     try {
