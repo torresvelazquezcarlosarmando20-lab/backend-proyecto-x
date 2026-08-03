@@ -2,7 +2,7 @@ const express = require('express');
 const cors = require('cors');
 const mongoose = require('mongoose');
 const QRCode = require('qrcode');
-const { v4: uuidv4 } = require('uuid'); // <--- AQUÍ LO IMPORTAS
+const { v4: uuidv4 } = require('uuid'); // <--- ESTA LÍNEA ES OBLIGATORIA ARRIBA
 
 // Importamos Stripe y lo conectamos con la llave guardada en la caja fuerte de Render
 const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
