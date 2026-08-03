@@ -29,7 +29,7 @@ app.post('/api/crear-pago', async (req, res) => {
     
     // Stripe maneja los montos en centavos. 
     // Si el boleto VIP cuesta $30 pesos, se envían 3000 centavos. Si es General, $15 pesos (1500 centavos).
-    const precio = tipoBoleto === 'VIP' ? 3000 : 1500; 
+    const precio = tipoBoleto === 'VIP' ? 5 : 1500; 
 
     try {
         const session = await stripe.checkout.sessions.create({
