@@ -35,9 +35,51 @@ app.post('/api/crear-pago', async (req, res) => {
         precio = 5000;  // 50.00 MXN en centavos
     } else if (tipoBoleto === 'Estudiante') {
         precio = 2500;  // 25.00 MXN en centavos
+    } else if (tipoBoleto === 'Prueba') {
+        precio = 0;     // Gratis para testear códigos QR
     }
 
     try {
+        // Si el precio es 0, nos saltamos Stripe y registramos directo
+        if (precio === 0) {
+            if (formato === 'digital') {
+                const idUnico = uuidv4().substring(0, 8).toUpperCase();
+                const codigoDR = `DR-${Math.floor(100000 + Math.random() * 900000)}`;
+                const fechaActual = new Date().toLocaleDateString('es-MX');
+
+                const urlDeGoogleScript = "https://script.google.com/macros/s/AKfycbyhttcJq4B6r7PKIThloX-VHza5o6_tGmZe_qCGw4oqSEDsKbNrNbvaTVmDjQ-DyJC6hg/exec";
+
+                await fetch(urlDeGoogleScript, {
+                    method: 'POST',
+                    body: JSON.stringify({
+                        idUnico: idUnico,
+                        codigoDR: codigoDR,
+                        nombre: nombreComprador,
+                        tipo: tipoBoleto,
+                        estado: 'Disponible',
+                        fecha: fechaActual,
+                        email: emailComprador,
+                        telefono: telefonoComprador
+                    })
+                });
+                console.log("📄 Registro de prueba enviado a Google Sheets con éxito.");
+            }
+
+            // Guardamos directamente como pagado en MongoDB
+            await Ticket.create({
+                idBoleto: uuidv4(),
+                tipo: tipoBoleto,
+                nombreComprador: nombreComprador,
+                telefonoComprador: telefonoComprador,
+                emailComprador: emailComprador,
+                pagado: true
+            });
+
+            return res.json({
+                urlDePago: 'https://tusitio.com/exito'
+            });
+        }
+
         if (formato === 'digital') {
             const idUnico = uuidv4().substring(0, 8).toUpperCase();
             const codigoDR = `DR-${Math.floor(100000 + Math.random() * 900000)}`;
