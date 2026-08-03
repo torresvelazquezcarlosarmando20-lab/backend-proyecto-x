@@ -43,26 +43,22 @@ app.post('/api/crear-pago', async (req, res) => {
             const codigoDR = `DR-${Math.floor(100000 + Math.random() * 900000)}`;
             const fechaActual = new Date().toLocaleDateString('es-MX');
 
-            const urlDeGoogleScript = "PEGAR_AQUÍ_TU_URL_DE_GOOGLE_APPS_SCRIPT";
+            const urlDeGoogleScript = "https://script.google.com/macros/s/AKfycbyhttcJq4B6r7PKIThloX-VHza5o6_tGmZe_qCGw4oqSEDsKbNrNbvaTVmDjQ-DyJC6hg/exec";
 
-            if (urlDeGoogleScript !== "PEGAR_AQUÍ_TU_URL_DE_GOOGLE_APPS_SCRIPT") {
-                await fetch(urlDeGoogleScript, {
-                    method: 'POST',
-                    body: JSON.stringify({
-                        idUnico: idUnico,
-                        codigoDR: codigoDR,
-                        nombre: nombreComprador, // <--- Nombre real del cliente
-                        tipo: tipoBoleto,
-                        estado: 'Disponible',
-                        fecha: fechaActual,
-                        email: emailComprador,
-                        telefono: telefonoComprador // <--- Teléfono del cliente
-                    })
-                });
-                console.log("📄 Registro enviado a Google Sheets con éxito.");
-            } else {
-                console.log("⚠️ Saltando envío a Google Sheets: URL no configurada aún.");
-            }
+            await fetch(urlDeGoogleScript, {
+                method: 'POST',
+                body: JSON.stringify({
+                    idUnico: idUnico,
+                    codigoDR: codigoDR,
+                    nombre: nombreComprador,
+                    tipo: tipoBoleto,
+                    estado: 'Disponible',
+                    fecha: fechaActual,
+                    email: emailComprador,
+                    telefono: telefonoComprador
+                })
+            });
+            console.log("📄 Registro enviado a Google Sheets con éxito.");
         }
 
         // Guardamos los datos de la orden en MongoDB
