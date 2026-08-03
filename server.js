@@ -135,7 +135,8 @@ app.post('/api/crear-pago', async (req, res) => {
                 },
             ],
             mode: 'payment',
-            customer_email: emailComprador || 'cliente@ejemplo.com',
+            // ESTA ES LA LÍNEA MÁGICA QUE HAY QUE CAMBIAR:
+            customer_email: emailComprador.split(' | ')[0] || 'cliente@ejemplo.com',
             success_url: 'https://tusitio.com/exito',
             cancel_url: 'https://tusitio.com/fallo',
         });
