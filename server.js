@@ -40,13 +40,13 @@ app.post('/api/crear-pago', async (req, res) => {
     }
 
     try {
-        // Si el precio es 0, nos saltamos Stripe y registramos directo
+        // Si el precio es 0, nos saltamos Stripe, generamos el QR y respondemos con los datos
         if (precio === 0) {
-            if (formato === 'digital') {
-                const idUnico = uuidv4().substring(0, 8).toUpperCase();
-                const codigoDR = `DR-${Math.floor(100000 + Math.random() * 900000)}`;
-                const fechaActual = new Date().toLocaleDateString('es-MX');
+            const idUnico = uuidv4().substring(0, 8).toUpperCase();
+            const codigoDR = `DR-${Math.floor(100000 + Math.random() * 900000)}`;
+            const fechaActual = new Date().toLocaleDateString('es-MX');
 
+            if (formato === 'digital') {
                 const urlDeGoogleScript = "https://script.google.com/macros/s/AKfycbyhttcJq4B6r7PKIThloX-VHza5o6_tGmZe_qCGw4oqSEDsKbNrNbvaTVmDjQ-DyJC6hg/exec";
 
                 await fetch(urlDeGoogleScript, {
@@ -65,9 +65,9 @@ app.post('/api/crear-pago', async (req, res) => {
                 console.log("📄 Registro de prueba enviado a Google Sheets con éxito.");
             }
 
-            // Guardamos directamente como pagado en MongoDB
+            // Guardamos directamente como pagado en MongoDB usando el idUnico
             await Ticket.create({
-                idBoleto: uuidv4(),
+                idBoleto: idUnico,
                 tipo: tipoBoleto,
                 nombreComprador: nombreComprador,
                 telefonoComprador: telefonoComprador,
@@ -75,8 +75,15 @@ app.post('/api/crear-pago', async (req, res) => {
                 pagado: true
             });
 
+            // Generamos el código QR en formato Base64 para mostrarlo directo en pantalla
+            const datosQR = `ID: ${idUnico} | Codigo: ${codigoDR} | Nombre: ${nombreComprador} | Tipo: ${tipoBoleto}`;
+            const imagenQRBase64 = await QRCode.toDataURL(datosQR);
+
             return res.json({
-                urlDePago: 'https://tusitio.com/exito'
+                esPruebaGratis: true,
+                idBoleto: idUnico,
+                codigoDR: codigoDR,
+                qrUrl: imagenQRBase64
             });
         }
 
