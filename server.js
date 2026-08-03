@@ -14,15 +14,18 @@ mongoose.connect(process.env.MONGODB_URI)
     .then(() => console.log('📦 Base de datos conectada con éxito.'))
     .catch(err => console.error('Error conectando a la BD:', err));
 
+// Modelo actualizado de la Base de Datos con Nombre y Teléfono
 const Ticket = mongoose.model('Ticket', new mongoose.Schema({
     idBoleto: String,
     tipo: String,
+    nombreComprador: String,
+    telefonoComprador: String,
     emailComprador: String,
     pagado: { type: Boolean, default: false }
 }));
 
 app.post('/api/crear-pago', async (req, res) => {
-    const { tipoBoleto, cantidad, formato, emailComprador } = req.body;
+    const { tipoBoleto, cantidad, formato, nombreComprador, telefonoComprador, emailComprador } = req.body;
     
     let precio = 2000; 
 
@@ -48,11 +51,12 @@ app.post('/api/crear-pago', async (req, res) => {
                     body: JSON.stringify({
                         idUnico: idUnico,
                         codigoDR: codigoDR,
-                        nombre: emailComprador,
+                        nombre: nombreComprador, // <--- Nombre real del cliente
                         tipo: tipoBoleto,
                         estado: 'Disponible',
                         fecha: fechaActual,
-                        email: emailComprador
+                        email: emailComprador,
+                        telefono: telefonoComprador // <--- Teléfono del cliente
                     })
                 });
                 console.log("📄 Registro enviado a Google Sheets con éxito.");
@@ -60,6 +64,16 @@ app.post('/api/crear-pago', async (req, res) => {
                 console.log("⚠️ Saltando envío a Google Sheets: URL no configurada aún.");
             }
         }
+
+        // Guardamos los datos de la orden en MongoDB
+        await Ticket.create({
+            idBoleto: uuidv4(),
+            tipo: tipoBoleto,
+            nombreComprador: nombreComprador,
+            telefonoComprador: telefonoComprador,
+            emailComprador: emailComprador,
+            pagado: false
+        });
 
         const session = await stripe.checkout.sessions.create({
             payment_method_types: ['card'],
