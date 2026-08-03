@@ -27,9 +27,16 @@ const Ticket = mongoose.model('Ticket', new mongoose.Schema({
 app.post('/api/crear-pago', async (req, res) => {
     const { tipoBoleto, cantidad, emailComprador } = req.body;
     
-    // Stripe maneja los montos en centavos. 
-    // Si el boleto VIP cuesta $30 pesos, se envían 3000 centavos. Si es General, $15 pesos (1500 centavos).
-    const precio = tipoBoleto === 'VIP' ? 5 : 1500; 
+    // Asignación de precios según el tipo de boleto (cantidades en centavos)
+    let precio = 2000; // Precio por defecto (si no coincide con ninguno)
+
+    if (tipoBoleto === 'VIP') {
+        precio = 10000; // $100.00 MXN (10000 centavos)
+    } else if (tipoBoleto === 'General') {
+        precio = 5000;  // $50.00 MXN (5000 centavos)
+    } else if (tipoBoleto === 'Estudiante') {
+        precio = 2500;  // $25.00 MXN (2500 centavos)
+    }
 
     try {
         const session = await stripe.checkout.sessions.create({
