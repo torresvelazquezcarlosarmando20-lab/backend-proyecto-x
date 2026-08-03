@@ -24,29 +24,53 @@ const Ticket = mongoose.model('Ticket', new mongoose.Schema({
 }));
 
 // 4. Endpoint para crear la orden de pago con Stripe
+// 4. Endpoint para crear la orden de pago con Stripe
 app.post('/api/crear-pago', async (req, res) => {
-    const { tipoBoleto, cantidad, emailComprador } = req.body;
+    // Recibimos los datos que envía tu nuevo index.html (incluyendo el formato: físico o digital)
+    const { tipoBoleto, cantidad, formato, emailComprador } = req.body;
     
     // Asignación de precios según el tipo de boleto (cantidades en centavos)
-    let precio = 2000; // Precio por defecto (si no coincide con ninguno)
+    let precio = 2000; // Precio por defecto
 
     if (tipoBoleto === 'VIP') {
-        precio = 10000; // $100.00 MXN (10000 centavos)
+        precio = 10000; // $100.00 MXN
     } else if (tipoBoleto === 'General') {
-        precio = 5000;  // $50.00 MXN (5000 centavos)
+        precio = 5000;  // $50.00 MXN
     } else if (tipoBoleto === 'Estudiante') {
-        precio = 2500;  // $25.00 MXN (2500 centavos)
+        precio = 2500;  // $25.00 MXN
     }
 
     try {
+        // ==========================================
+        // AQUÍ ES DONDE INTEGRAS LA LÓGICA DE TU SECUENCIA
+        // Si el usuario eligió formato digital, generamos su registro y QR:
+        if (formato === 'digital') {
+            const idUnico = uuidv4().substring(0, 8).toUpperCase();
+            const codigoDR = `DR-${Math.floor(100000 + Math.random() * 900000)}`;
+            const fechaActual = new Date().toLocaleDateString('es-MX');
+
+            // Aquí ejecutas la función para guardarlo en tu Google Sheet / Drive o Base de datos:
+            console.log(`Generando boleto digital con secuencia: ID: ${idUnico}, Código: ${codigoDR}, Fecha: ${fechaActual}`);
+            
+            // Ejemplo de los datos estructurados que se irán a tu registro:
+            // CampoEjemploID: ${idUnico}
+            // CódigoDR: ${codigoDR}
+            // Nombre: Carlos Torres (o el que recolectes del formulario)
+            // Tipo: ${tipoBoleto}
+            // Estado: Disponible / Vendido
+            // Fecha de compra: ${fechaActual}
+            // Email: ${emailComprador}
+        }
+        // ==========================================
+
         const session = await stripe.checkout.sessions.create({
             payment_method_types: ['card'],
             line_items: [
                 {
                     price_data: {
-                        currency: 'mxn', // Moneda en pesos mexicanos para tu cuenta Nu
+                        currency: 'mxn',
                         product_data: {
-                            name: `Boleto ${tipoBoleto} - Proyecto X`,
+                            name: `Boleto ${tipoBoleto} (${formato}) - Night Bear Productions`,
                         },
                         unit_amount: precio,
                     },
@@ -59,7 +83,6 @@ app.post('/api/crear-pago', async (req, res) => {
             cancel_url: 'https://tusitio.com/fallo',
         });
 
-        // Devolvemos la URL segura de la pasarela de Stripe al Frontend
         res.json({
             urlDePago: session.url 
         });
