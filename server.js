@@ -12,7 +12,7 @@ app.use(express.json());
 const client = new MercadoPagoConfig({ accessToken: 'TU_ACCESS_TOKEN_AQUI' });
 
 // 2. Conexión a MongoDB (Cuando crees tu cuenta en Atlas, cambiarás este link local por el de la nube)
-mongoose.connect('mongodb://127.0.0.1:27017/fiesta_db')
+mongoose.connect(process.env.MONGODB_URI)
     .then(() => console.log('📦 Base de datos conectada con éxito.'))
     .catch(err => console.error('Error conectando a la BD:', err));
 
