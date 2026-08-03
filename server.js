@@ -2,6 +2,7 @@ const express = require('express');
 const cors = require('cors');
 const mongoose = require('mongoose');
 const QRCode = require('qrcode');
+const { v4: uuidv4 } = require('uuid'); // <--- AQUÍ LO IMPORTAS
 
 // Importamos Stripe y lo conectamos con la llave guardada en la caja fuerte de Render
 const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
@@ -26,42 +27,47 @@ const Ticket = mongoose.model('Ticket', new mongoose.Schema({
 // 4. Endpoint para crear la orden de pago con Stripe
 // 4. Endpoint para crear la orden de pago con Stripe
 app.post('/api/crear-pago', async (req, res) => {
-    // Recibimos los datos que envía tu nuevo index.html (incluyendo el formato: físico o digital)
     const { tipoBoleto, cantidad, formato, emailComprador } = req.body;
     
-    // Asignación de precios según el tipo de boleto (cantidades en centavos)
-    let precio = 2000; // Precio por defecto
+    // Asignación de precios según el tipo de boleto (en centavos)
+    let precio = 2000; 
 
     if (tipoBoleto === 'VIP') {
-        precio = 10000; // $100.00 MXN
+        precio = 10000; 
     } else if (tipoBoleto === 'General') {
-        precio = 5000;  // $50.00 MXN
+        precio = 5000;  
     } else if (tipoBoleto === 'Estudiante') {
-        precio = 2500;  // $25.00 MXN
+        precio = 2500;  
     }
 
     try {
-        // ==========================================
-        // AQUÍ ES DONDE INTEGRAS LA LÓGICA DE TU SECUENCIA
-        // Si el usuario eligió formato digital, generamos su registro y QR:
+        // ==========================================================
+        // AQUÍ AGREGAS LA LÓGICA SI EL BOLETO ES DIGITAL
+        // ==========================================================
         if (formato === 'digital') {
             const idUnico = uuidv4().substring(0, 8).toUpperCase();
             const codigoDR = `DR-${Math.floor(100000 + Math.random() * 900000)}`;
             const fechaActual = new Date().toLocaleDateString('es-MX');
 
-            // Aquí ejecutas la función para guardarlo en tu Google Sheet / Drive o Base de datos:
-            console.log(`Generando boleto digital con secuencia: ID: ${idUnico}, Código: ${codigoDR}, Fecha: ${fechaActual}`);
-            
-            // Ejemplo de los datos estructurados que se irán a tu registro:
-            // CampoEjemploID: ${idUnico}
-            // CódigoDR: ${codigoDR}
-            // Nombre: Carlos Torres (o el que recolectes del formulario)
-            // Tipo: ${tipoBoleto}
-            // Estado: Disponible / Vendido
-            // Fecha de compra: ${fechaActual}
-            // Email: ${emailComprador}
+            // La URL que te dio Google Apps Script al implementarlo
+            const urlDeGoogleScript = "PEGAR_AQUÍ_TU_URL_DE_GOOGLE_APPS_SCRIPT";
+
+            // Enviamos los datos en secreto a tu Google Sheet
+            await fetch(urlDeGoogleScript, {
+                method: 'POST',
+                body: JSON.stringify({
+                    idUnico: idUnico,
+                    codigoDR: codigoDR,
+                    nombre: emailComprador, // Puedes cambiarlo por el nombre si lo pides en el formulario
+                    tipo: tipoBoleto,
+                    estado: 'Disponible',
+                    fecha: fechaActual,
+                    email: emailComprador
+                })
+            });
+            console.log("📄 Registro enviado a Google Sheets con éxito.");
         }
-        // ==========================================
+        // ==========================================================
 
         const session = await stripe.checkout.sessions.create({
             payment_method_types: ['card'],
@@ -88,8 +94,8 @@ app.post('/api/crear-pago', async (req, res) => {
         });
 
     } catch (error) {
-        console.error('Error con Stripe:', error);
-        res.status(500).json({ error: 'Fallo al conectar con la pasarela de pagos' });
+        console.error('Error con Stripe o Google Sheets:', error);
+        res.status(500).json({ error: 'Fallo al procesar la solicitud' });
     }
 });
 
