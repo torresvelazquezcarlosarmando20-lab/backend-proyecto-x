@@ -153,7 +153,7 @@ app.post('/api/crear-pago', async (req, res) => {
             ],
             mode: 'payment',
             customer_email: emailComprador.split(' | ')[0] || 'cliente@ejemplo.com',
-            success_url: 'https://nightbearproductions.netlify.app/exito.html',
+            success_url: `https://nightbearproductions.netlify.app/exito.html?codigo=${codigoDR}`,
             cancel_url: 'https://nightbearproductions.netlify.app/',
             metadata: {
                 idBoleto: idUnico,
