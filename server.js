@@ -99,10 +99,15 @@ app.use(express.json());
 app.post('/api/crear-pago', async (req, res) => {
     const { tipoBoleto, cantidad, formato, nombreComprador, telefonoComprador, emailComprador } = req.body;
     
-    let precio = 10000; 
+    let precio = 10000; // Valor por defecto (Preventa: 100 MXN en centavos)
 
-    if (tipoBoleto === 'Preventa') {
+    // Definición exacta de precios para cada tipo de acceso
+    if (tipoBoleto === 'Preventa de Lanzamiento' || tipoBoleto === 'Preventa') {
         precio = 10000; // 100.00 MXN
+    } else if (tipoBoleto === 'Zona General' || tipoBoleto.includes('General')) {
+        precio = 180000; // 1,800.00 MXN
+    } else if (tipoBoleto === 'Zona VIP' || tipoBoleto.includes('VIP')) {
+        precio = 500000; // 5,000.00 MXN
     }
 
     try {
@@ -153,7 +158,8 @@ app.post('/api/crear-pago', async (req, res) => {
             ],
             mode: 'payment',
             customer_email: emailComprador.split(' | ')[0] || 'cliente@ejemplo.com',
-            success_url: `https://nightbearproductions.netlify.app/exito.html?codigo=${codigoDR}`,
+            // Importante: Enviamos el código y el tipo de boleto para que exito.html cargue el diseño correcto
+            success_url: `https://nightbearproductions.netlify.app/exito.html?codigo=${codigoDR}&tipo=${encodeURIComponent(tipoBoleto)}`,
             cancel_url: 'https://nightbearproductions.netlify.app/',
             metadata: {
                 idBoleto: idUnico,
