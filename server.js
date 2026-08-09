@@ -18,6 +18,7 @@ mongoose.connect(process.env.MONGODB_URI)
 
 const Ticket = mongoose.model('Ticket', new mongoose.Schema({
     idBoleto: String,
+    codigoDR: String, // Agregado para rastrear el código de formato DR fácilmente
     tipo: String,
     nombreComprador: String,
     telefonoComprador: String,
@@ -45,10 +46,10 @@ app.post('/api/webhook', express.raw({ type: 'application/json' }), async (req, 
         
         const { idBoleto, codigoDR, nombre, telefono, email, cantidad, tipo, formato, precioTotal } = session.metadata;
 
-        console.log(`✅ ¡Pago exitoso confirmado para el boleto ${idBoleto}!`);
+        console.log(`✅ ¡Pago exitoso confirmado para el boleto ${idBoleto} (${codigoDR})!`);
 
-        // Marcamos el boleto como pagado
-        await Ticket.findOneAndUpdate({ idBoleto: idBoleto }, { pagado: true });
+        // Marcamos el boleto como pagado buscando por codigoDR o idBoleto
+        await Ticket.findOneAndUpdate({ codigoDR: codigoDR }, { pagado: true });
 
         // ENVIAMOS EL CORREO A NIGHT BEAR
         try {
@@ -96,6 +97,23 @@ app.post('/api/webhook', express.raw({ type: 'application/json' }), async (req, 
 // ==========================================
 app.use(express.json());
 
+// Ruta nueva para verificar el estado de pago desde exito.html
+app.get('/api/verificar-pago/:codigo', async (req, res) => {
+    try {
+        const codigoBuscado = req.params.codigo;
+        const ticket = await Ticket.findOne({ codigoDR: codigoBuscado });
+
+        if (ticket && ticket.pagado) {
+            return res.json({ autorizado: true });
+        } else {
+            return res.json({ autorizado: false });
+        }
+    } catch (error) {
+        console.error('Error al verificar pago:', error);
+        res.status(500).json({ autorizado: false });
+    }
+});
+
 app.post('/api/crear-pago', async (req, res) => {
     const { tipoBoleto, cantidad, formato, nombreComprador, telefonoComprador, emailComprador } = req.body;
     
@@ -135,6 +153,7 @@ app.post('/api/crear-pago', async (req, res) => {
 
         await Ticket.create({
             idBoleto: idUnico,
+            codigoDR: codigoDR,
             tipo: tipoBoleto,
             nombreComprador: nombreComprador,
             telefonoComprador: telefonoComprador,
@@ -158,7 +177,6 @@ app.post('/api/crear-pago', async (req, res) => {
             ],
             mode: 'payment',
             customer_email: emailComprador.split(' | ')[0] || 'cliente@ejemplo.com',
-            // Importante: Enviamos el código y el tipo de boleto para que exito.html cargue el diseño correcto
             success_url: `https://nightbearproductions.netlify.app/exito.html?codigo=${codigoDR}&tipo=${encodeURIComponent(tipoBoleto)}`,
             cancel_url: 'https://nightbearproductions.netlify.app/',
             metadata: {
