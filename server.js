@@ -18,7 +18,7 @@ mongoose.connect(process.env.MONGODB_URI)
 
 const Ticket = mongoose.model('Ticket', new mongoose.Schema({
     idBoleto: String,
-    codigoDR: String, // Agregado para rastrear el código de formato DR fácilmente
+    codigoDR: String,
     tipo: String,
     nombreComprador: String,
     telefonoComprador: String,
@@ -28,7 +28,6 @@ const Ticket = mongoose.model('Ticket', new mongoose.Schema({
 
 // ==========================================
 // 2. RUTA WEBHOOK (Para escuchar a Stripe)
-// IMPORTANTE: Stripe exige que el "body" sea raw
 // ==========================================
 app.post('/api/webhook', express.raw({ type: 'application/json' }), async (req, res) => {
     const sig = req.headers['stripe-signature'];
@@ -43,15 +42,11 @@ app.post('/api/webhook', express.raw({ type: 'application/json' }), async (req, 
 
     if (event.type === 'checkout.session.completed') {
         const session = event.data.object;
-        
         const { idBoleto, codigoDR, nombre, telefono, email, cantidad, tipo, formato, precioTotal } = session.metadata;
 
         console.log(`✅ ¡Pago exitoso confirmado para el boleto ${idBoleto} (${codigoDR})!`);
-
-        // Marcamos el boleto como pagado buscando por codigoDR o idBoleto
         await Ticket.findOneAndUpdate({ codigoDR: codigoDR }, { pagado: true });
 
-        // ENVIAMOS EL CORREO A NIGHT BEAR
         try {
             const transporter = nodemailer.createTransport({
                 service: 'gmail',
@@ -83,7 +78,6 @@ app.post('/api/webhook', express.raw({ type: 'application/json' }), async (req, 
             };
 
             await transporter.sendMail(mailOptions);
-            console.log("📧 Correo de confirmación de pago enviado al admin.");
         } catch (mailError) {
             console.error("Error al enviar el correo:", mailError);
         }
@@ -93,7 +87,7 @@ app.post('/api/webhook', express.raw({ type: 'application/json' }), async (req, 
 });
 
 // ==========================================
-// 3. RUTAS NORMALES (A partir de aquí se usa JSON)
+// 3. RUTAS NORMALES
 // ==========================================
 app.use(express.json());
 
@@ -115,13 +109,14 @@ app.get('/api/verificar-pago/:codigo', async (req, res) => {
 });
 
 // ==========================================
-// RUTA PARA GENERACIÓN MANUAL DE BOLETOS (Admin / WhatsApp)
+// RUTA PARA GENERACIÓN MANUAL DE BOLETOS (WhatsApp)
 // ==========================================
 app.post('/api/admin/generar-boleto', async (req, res) => {
     const { passwordAdmin, tipoBoleto, formato, nombreComprador, telefonoComprador, emailComprador } = req.body;
 
-    if (passwordAdmin !== process.env.ADMIN_PASSWORD || !process.env.ADMIN_PASSWORD) {
-        return res.status(401).json({ error: 'Contraseña de administrador incorrecta' });
+    // Contraseña fija integrada para evitar errores en Render
+    if (passwordAdmin !== 'TORRES6') {
+        return res.status(401).json({ error: 'Contraseña incorrecta. Usa: TORRES6' });
     }
 
     try {
@@ -140,7 +135,7 @@ app.post('/api/admin/generar-boleto', async (req, res) => {
             pagado: true
         });
 
-        // 2. Enviar los datos directamente a Google Sheets mediante Google Apps Script
+        // 2. Enviar los datos directamente a Google Sheets
         const urlDeGoogleScript = "https://script.google.com/macros/s/AKfycbyhttcJq4B6r7PKIThloX-VHza5o6_tGmZe_qCGw4oqSEDsKbNrNbvaTVmDjQ-DyJC6hg/exec";
         
         await fetch(urlDeGoogleScript, {
@@ -157,7 +152,6 @@ app.post('/api/admin/generar-boleto', async (req, res) => {
             })
         });
 
-        // Generamos el enlace listo para pasárselo al cliente por WhatsApp
         const enlaceBoleto = `https://nightbearproductions.netlify.app/exito.html?codigo=${codigoDR}&tipo=${encodeURIComponent(tipoBoleto)}`;
         res.json({ exito: true, codigoDR, enlaceBoleto });
 
@@ -170,15 +164,14 @@ app.post('/api/admin/generar-boleto', async (req, res) => {
 app.post('/api/crear-pago', async (req, res) => {
     const { tipoBoleto, cantidad, formato, nombreComprador, telefonoComprador, emailComprador } = req.body;
     
-    let precio = 10000; // Valor por defecto (Preventa: 100 MXN en centavos)
+    let precio = 10000; 
 
-    // Definición exacta de precios para cada tipo de acceso
     if (tipoBoleto === 'Preventa de Lanzamiento' || tipoBoleto === 'Preventa') {
-        precio = 10000; // 100.00 MXN
+        precio = 10000; 
     } else if (tipoBoleto === 'Zona General' || tipoBoleto.includes('General')) {
-        precio = 180000; // 1,800.00 MXN
+        precio = 180000; 
     } else if (tipoBoleto === 'Zona VIP' || tipoBoleto.includes('VIP')) {
-        precio = 500000; // 5,000.00 MXN
+        precio = 500000; 
     }
 
     try {
