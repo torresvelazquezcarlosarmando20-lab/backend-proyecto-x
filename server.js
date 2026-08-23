@@ -97,7 +97,7 @@ app.post('/api/webhook', express.raw({ type: 'application/json' }), async (req, 
 // ==========================================
 app.use(express.json());
 
-// Ruta nueva para verificar el estado de pago desde exito.html
+// Ruta para verificar el estado de pago desde exito.html
 app.get('/api/verificar-pago/:codigo', async (req, res) => {
     try {
         const codigoBuscado = req.params.codigo;
@@ -111,6 +111,59 @@ app.get('/api/verificar-pago/:codigo', async (req, res) => {
     } catch (error) {
         console.error('Error al verificar pago:', error);
         res.status(500).json({ autorizado: false });
+    }
+});
+
+// ==========================================
+// RUTA PARA GENERACIÓN MANUAL DE BOLETOS (Admin / WhatsApp)
+// ==========================================
+app.post('/api/admin/generar-boleto', async (req, res) => {
+    const { passwordAdmin, tipoBoleto, formato, nombreComprador, telefonoComprador, emailComprador } = req.body;
+
+    if (passwordAdmin !== process.env.ADMIN_PASSWORD || !process.env.ADMIN_PASSWORD) {
+        return res.status(401).json({ error: 'Contraseña de administrador incorrecta' });
+    }
+
+    try {
+        const idUnico = uuidv4().substring(0, 8).toUpperCase();
+        const codigoDR = `DR-${Math.floor(100000 + Math.random() * 900000)}`;
+        const fechaActual = new Date().toLocaleDateString('es-MX');
+
+        // 1. Guardar en MongoDB con pagado: true de inmediato
+        await Ticket.create({
+            idBoleto: idUnico,
+            codigoDR: codigoDR,
+            tipo: tipoBoleto,
+            nombreComprador: nombreComprador,
+            telefonoComprador: telefonoComprador,
+            emailComprador: emailComprador,
+            pagado: true
+        });
+
+        // 2. Enviar los datos directamente a Google Sheets mediante Google Apps Script
+        const urlDeGoogleScript = "https://script.google.com/macros/s/AKfycbyhttcJq4B6r7PKIThloX-VHza5o6_tGmZe_qCGw4oqSEDsKbNrNbvaTVmDjQ-DyJC6hg/exec";
+        
+        await fetch(urlDeGoogleScript, {
+            method: 'POST',
+            body: JSON.stringify({
+                idUnico: idUnico,
+                codigoDR: codigoDR,
+                nombre: nombreComprador,
+                tipo: tipoBoleto,
+                estado: 'Pagado (Venta Manual / WhatsApp)',
+                fecha: fechaActual,
+                email: emailComprador,
+                telefono: telefonoComprador
+            })
+        });
+
+        // Generamos el enlace listo para pasárselo al cliente por WhatsApp
+        const enlaceBoleto = `https://nightbearproductions.netlify.app/exito.html?codigo=${codigoDR}&tipo=${encodeURIComponent(tipoBoleto)}`;
+        res.json({ exito: true, codigoDR, enlaceBoleto });
+
+    } catch (error) {
+        console.error('Error generando boleto manual:', error);
+        res.status(500).json({ error: 'Fallo al generar el boleto' });
     }
 });
 
