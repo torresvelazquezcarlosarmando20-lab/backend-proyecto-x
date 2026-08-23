@@ -114,7 +114,6 @@ app.get('/api/verificar-pago/:codigo', async (req, res) => {
 app.post('/api/admin/generar-boleto', async (req, res) => {
     const { passwordAdmin, tipoBoleto, formato, nombreComprador, telefonoComprador, emailComprador } = req.body;
 
-    // Contraseña fija integrada para evitar errores en Render
     if (passwordAdmin !== 'TORRES6') {
         return res.status(401).json({ error: 'Contraseña incorrecta. Usa: TORRES6' });
     }
@@ -168,6 +167,8 @@ app.post('/api/crear-pago', async (req, res) => {
 
     if (tipoBoleto === 'Preventa de Lanzamiento' || tipoBoleto === 'Preventa') {
         precio = 10000; 
+    } else if (tipoBoleto === 'Boleto VIP Individual') {
+        precio = 40000; // 400.00 MXN en centavos
     } else if (tipoBoleto === 'Zona General' || tipoBoleto.includes('General')) {
         precio = 180000; 
     } else if (tipoBoleto === 'Zona VIP' || tipoBoleto.includes('VIP')) {
