@@ -163,16 +163,24 @@ app.post('/api/admin/generar-boleto', async (req, res) => {
 app.post('/api/crear-pago', async (req, res) => {
     const { tipoBoleto, cantidad, formato, nombreComprador, telefonoComprador, emailComprador } = req.body;
     
-    let precio = 10000; 
+    let precio = 15000; // Por defecto General Fase 1: 150.00 MXN
+    const tipoLower = tipoBoleto.toLowerCase();
 
-    if (tipoBoleto === 'Preventa de Lanzamiento' || tipoBoleto === 'Preventa') {
-        precio = 10000; 
-    } else if (tipoBoleto === 'Boleto VIP Individual') {
-        precio = 40000; // 400.00 MXN en centavos
-    } else if (tipoBoleto === 'Zona General' || tipoBoleto.includes('General')) {
-        precio = 180000; 
-    } else if (tipoBoleto === 'Zona VIP' || tipoBoleto.includes('VIP')) {
-        precio = 500000; 
+    // Validamos primero si es MESA para evitar confusiones con los boletos individuales
+    if (tipoLower.includes('mesa') && tipoLower.includes('general')) {
+        precio = 190000; // Mesa Zona General: $1,900.00 MXN
+    } else if (tipoLower.includes('mesa') && tipoLower.includes('vip')) {
+        precio = 370000; // Mesa Zona VIP: $3,700.00 MXN
+    } else if (tipoLower.includes('mesa') && tipoLower.includes('midnight')) {
+        precio = 400000; // Mesa Midnight Pass: $4,000.00 MXN
+    } 
+    // Si no es mesa, validamos los accesos INDIVIDUALES
+    else if (tipoLower.includes('midnight')) {
+        precio = 40000;  // Individual Midnight Pass: $400.00 MXN
+    } else if (tipoLower.includes('vip')) {
+        precio = 30000;  // Individual VIP: $300.00 MXN
+    } else if (tipoLower.includes('general')) {
+        precio = 15000;  // Individual General: $150.00 MXN
     }
 
     try {
