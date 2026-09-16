@@ -139,7 +139,7 @@ app.post('/api/admin/generar-boleto', async (req, res) => {
         });
 
         // 2. Enviar los datos directamente a Google Sheets incluyendo el lugar
-        const urlDeGoogleScript = "https://script.google.com/macros/s/AKfycbz1JXIZltZJevu-pp0SsJnM5wFW1iUC_c4Np-tSMj9hNy9iSs6yaZNid2eXJLgFgOWlyA/exec";
+        const urlDeGoogleScript = "https://script.google.com/macros/s/AKfycbwZNlEMr6tllSdmdIGXURibabmWpxqZ1FjrLJzrC2h5zXNWQjXj4-uBMR7lrTPFgUK6/exec";
         
         await fetch(urlDeGoogleScript, {
             method: 'POST',
@@ -184,7 +184,7 @@ app.post('/api/crear-pago', async (req, res) => {
         const fechaActual = new Date().toLocaleDateString('es-MX');
 
         if (formato === 'digital') {
-            const urlDeGoogleScript = "https://script.google.com/macros/s/AKfycbz1JXIZltZJevu-pp0SsJnM5wFW1iUC_c4Np-tSMj9hNy9iSs6yaZNid2eXJLgFgOWlyA/exec";
+            const urlDeGoogleScript = "https://script.google.com/macros/s/AKfycbwZNlEMr6tllSdmdIGXURibabmWpxqZ1FjrLJzrC2h5zXNWQjXj4-uBMR7lrTPFgUK6/exec";
 
             await fetch(urlDeGoogleScript, {
                 method: 'POST',
