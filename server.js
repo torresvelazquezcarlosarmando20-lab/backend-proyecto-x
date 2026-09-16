@@ -23,8 +23,10 @@ const Ticket = mongoose.model('Ticket', new mongoose.Schema({
     nombreComprador: String,
     telefonoComprador: String,
     emailComprador: String,
+    lugar: String, // <-- LUGAR GUARDADO EN MONGODB
     pagado: { type: Boolean, default: false }
 }));
+
 
 // ==========================================
 // 2. RUTA WEBHOOK (Para escuchar a Stripe)
@@ -112,7 +114,8 @@ app.get('/api/verificar-pago/:codigo', async (req, res) => {
 // RUTA PARA GENERACIÓN MANUAL DE BOLETOS (WhatsApp)
 // ==========================================
 app.post('/api/admin/generar-boleto', async (req, res) => {
-    const { passwordAdmin, tipoBoleto, formato, nombreComprador, telefonoComprador, emailComprador } = req.body;
+    // Se incluye 'lugar' aquí para que la ruta manual no lo ignore:
+    const { passwordAdmin, tipoBoleto, formato, nombreComprador, telefonoComprador, emailComprador, lugar } = req.body;
 
     if (passwordAdmin !== 'TORRES6') {
         return res.status(401).json({ error: 'Contraseña incorrecta. Usa: TORRES6' });
@@ -123,7 +126,7 @@ app.post('/api/admin/generar-boleto', async (req, res) => {
         const codigoDR = `DR-${Math.floor(100000 + Math.random() * 900000)}`;
         const fechaActual = new Date().toLocaleDateString('es-MX');
 
-        // 1. Guardar en MongoDB con pagado: true de inmediato
+        // 1. Guardar en MongoDB con pagado: true e incluir el lugar
         await Ticket.create({
             idBoleto: idUnico,
             codigoDR: codigoDR,
@@ -131,10 +134,11 @@ app.post('/api/admin/generar-boleto', async (req, res) => {
             nombreComprador: nombreComprador,
             telefonoComprador: telefonoComprador,
             emailComprador: emailComprador,
+            lugar: lugar || 'N/A',
             pagado: true
         });
 
-        // 2. Enviar los datos directamente a Google Sheets
+        // 2. Enviar los datos directamente a Google Sheets incluyendo el lugar
         const urlDeGoogleScript = "https://script.google.com/macros/s/AKfycbyhttcJq4B6r7PKIThloX-VHza5o6_tGmZe_qCGw4oqSEDsKbNrNbvaTVmDjQ-DyJC6hg/exec";
         
         await fetch(urlDeGoogleScript, {
@@ -147,11 +151,12 @@ app.post('/api/admin/generar-boleto', async (req, res) => {
                 estado: 'Pagado (Venta Manual / WhatsApp)',
                 fecha: fechaActual,
                 email: emailComprador,
-                telefono: telefonoComprador
+                telefono: telefonoComprador,
+                lugar: lugar || 'N/A'
             })
         });
 
-        const enlaceBoleto = `https://nightbearproductions.netlify.app/exito.html?codigo=${codigoDR}&tipo=${encodeURIComponent(tipoBoleto)}`;
+        const enlaceBoleto = `https://nightbearproductions.netlify.app/exito.html?codigo=${codigoDR}&tipo=${encodeURIComponent(tipoBoleto)}&lugar=${encodeURIComponent(lugar || '')}`;
         res.json({ exito: true, codigoDR, enlaceBoleto });
 
     } catch (error) {
@@ -161,27 +166,17 @@ app.post('/api/admin/generar-boleto', async (req, res) => {
 });
 
 app.post('/api/crear-pago', async (req, res) => {
-    const { tipoBoleto, cantidad, formato, nombreComprador, telefonoComprador, emailComprador } = req.body;
+    const { tipoBoleto, cantidad, formato, nombreComprador, telefonoComprador, emailComprador, lugar } = req.body;
     
     let precio = 15000; // Por defecto General Fase 1: 150.00 MXN
     const tipoLower = tipoBoleto.toLowerCase();
 
-    // Validamos primero si es MESA para evitar confusiones con los boletos individuales
-    if (tipoLower.includes('mesa') && tipoLower.includes('general')) {
-        precio = 190000; // Mesa Zona General: $1,900.00 MXN
-    } else if (tipoLower.includes('mesa') && tipoLower.includes('vip')) {
-        precio = 370000; // Mesa Zona VIP: $3,700.00 MXN
-    } else if (tipoLower.includes('mesa') && tipoLower.includes('midnight')) {
-        precio = 400000; // Mesa Midnight Pass: $4,000.00 MXN
-    } 
-    // Si no es mesa, validamos los accesos INDIVIDUALES
-    else if (tipoLower.includes('midnight')) {
-        precio = 40000;  // Individual Midnight Pass: $400.00 MXN
-    } else if (tipoLower.includes('vip')) {
-        precio = 30000;  // Individual VIP: $300.00 MXN
-    } else if (tipoLower.includes('general')) {
-        precio = 15000;  // Individual General: $150.00 MXN
-    }
+    if (tipoLower.includes('mesa') && tipoLower.includes('general')) { precio = 190000; } 
+    else if (tipoLower.includes('mesa') && tipoLower.includes('vip')) { precio = 370000; } 
+    else if (tipoLower.includes('mesa') && tipoLower.includes('midnight')) { precio = 400000; } 
+    else if (tipoLower.includes('midnight')) { precio = 40000; } 
+    else if (tipoLower.includes('vip')) { precio = 30000; } 
+    else if (tipoLower.includes('general')) { precio = 15000; }
 
     try {
         const idUnico = uuidv4().substring(0, 8).toUpperCase();
@@ -201,7 +196,8 @@ app.post('/api/crear-pago', async (req, res) => {
                     estado: 'Pendiente de Pago',
                     fecha: fechaActual,
                     email: emailComprador,
-                    telefono: telefonoComprador
+                    telefono: telefonoComprador,
+                    lugar: lugar // <-- SE ENVÍA A GOOGLE SHEETS
                 })
             });
         }
@@ -213,6 +209,7 @@ app.post('/api/crear-pago', async (req, res) => {
             nombreComprador: nombreComprador,
             telefonoComprador: telefonoComprador,
             emailComprador: emailComprador,
+            lugar: lugar, // <-- SE GUARDA EN MONGODB
             pagado: false
         });
 
@@ -222,9 +219,7 @@ app.post('/api/crear-pago', async (req, res) => {
                 {
                     price_data: {
                         currency: 'mxn',
-                        product_data: {
-                            name: `Boleto ${tipoBoleto} (${formato}) - Night Bear Productions`,
-                        },
+                        product_data: { name: `Boleto ${tipoBoleto} (${formato}) - Night Bear Productions` },
                         unit_amount: precio,
                     },
                     quantity: Number(cantidad),
@@ -232,7 +227,7 @@ app.post('/api/crear-pago', async (req, res) => {
             ],
             mode: 'payment',
             customer_email: emailComprador.split(' | ')[0] || 'cliente@ejemplo.com',
-            success_url: `https://nightbearproductions.netlify.app/exito.html?codigo=${codigoDR}&tipo=${encodeURIComponent(tipoBoleto)}`,
+            success_url: `https://nightbearproductions.netlify.app/exito.html?codigo=${codigoDR}&tipo=${encodeURIComponent(tipoBoleto)}&lugar=${encodeURIComponent(lugar)}`,
             cancel_url: 'https://nightbearproductions.netlify.app/',
             metadata: {
                 idBoleto: idUnico,
@@ -243,6 +238,7 @@ app.post('/api/crear-pago', async (req, res) => {
                 cantidad: cantidad.toString(),
                 tipo: tipoBoleto,
                 formato: formato,
+                lugar: lugar || 'N/A',
                 precioTotal: ((precio / 100) * cantidad).toString()
             }
         });
