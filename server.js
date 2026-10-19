@@ -137,12 +137,14 @@ app.post('/api/admin/generar-boleto', async (req, res) => {
             lugar: lugar || 'N/A',
             pagado: true
         });
-
-        // 2. Enviar los datos directamente a Google Sheets incluyendo el lugar
+// 2. Enviar los datos directamente a Google Sheets incluyendo el lugar
         const urlDeGoogleScript = "https://script.google.com/macros/s/AKfycbwZNlEMr6tllSdmdIGXURibabmWpxqZ1FjrLJzrC2h5zXNWQjXj4-uBMR7lrTPFgUK6/exec";
         
-        await fetch(urlDeGoogleScript, {
+        console.log("Enviando datos a Google..."); // <--- CHIVATO 1
+
+        const respuestaGoogle = await fetch(urlDeGoogleScript, {
             method: 'POST',
+            headers: { 'Content-Type': 'application/json' }, // <--- AGREGADO CRÍTICO
             body: JSON.stringify({
                 idUnico: idUnico,
                 codigoDR: codigoDR,
@@ -156,6 +158,9 @@ app.post('/api/admin/generar-boleto', async (req, res) => {
             })
         });
 
+        const textoGoogle = await respuestaGoogle.text();
+        console.log("Google Respondió:", textoGoogle); // <--- CHIVATO 2
+
         const enlaceBoleto = `https://nightbearproductions.netlify.app/exito.html?codigo=${codigoDR}&tipo=${encodeURIComponent(tipoBoleto)}&lugar=${encodeURIComponent(lugar || '')}`;
         res.json({ exito: true, codigoDR, enlaceBoleto });
 
@@ -164,7 +169,6 @@ app.post('/api/admin/generar-boleto', async (req, res) => {
         res.status(500).json({ error: 'Fallo al generar el boleto' });
     }
 });
-
 app.post('/api/crear-pago', async (req, res) => {
     const { tipoBoleto, cantidad, formato, nombreComprador, telefonoComprador, emailComprador, lugar } = req.body;
     
