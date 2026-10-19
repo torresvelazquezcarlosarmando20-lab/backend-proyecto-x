@@ -9,9 +9,9 @@ const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
 const app = express();
 app.use(cors());
 
-// ==========================================
+// 
 // 1. BASE DE DATOS Y MODELOS (Debe ir arriba)
-// ==========================================
+// 
 mongoose.connect(process.env.MONGODB_URI)
     .then(() => console.log('📦 Base de datos conectada con éxito.'))
     .catch(err => console.error('Error conectando a la BD:', err));
@@ -28,9 +28,9 @@ const Ticket = mongoose.model('Ticket', new mongoose.Schema({
 }));
 
 
-// ==========================================
+// 
 // 2. RUTA WEBHOOK (Para escuchar a Stripe)
-// ==========================================
+// 
 app.post('/api/webhook', express.raw({ type: 'application/json' }), async (req, res) => {
     const sig = req.headers['stripe-signature'];
     let event;
@@ -88,9 +88,9 @@ app.post('/api/webhook', express.raw({ type: 'application/json' }), async (req, 
     res.status(200).end();
 });
 
-// ==========================================
+// 
 // 3. RUTAS NORMALES
-// ==========================================
+// 
 app.use(express.json());
 
 // Ruta para verificar el estado de pago desde exito.html
@@ -110,9 +110,9 @@ app.get('/api/verificar-pago/:codigo', async (req, res) => {
     }
 });
 
-// ==========================================
+// 
 // RUTA PARA GENERACIÓN MANUAL DE BOLETOS (WhatsApp)
-// ==========================================
+// 
 app.post('/api/admin/generar-boleto', async (req, res) => {
     // Se incluye 'lugar' aquí para que la ruta manual no lo ignore:
     const { passwordAdmin, tipoBoleto, formato, nombreComprador, telefonoComprador, emailComprador, lugar } = req.body;
