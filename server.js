@@ -138,7 +138,7 @@ app.post('/api/admin/generar-boleto', async (req, res) => {
             pagado: true
         });
 // 2. Enviar los datos directamente a Google Sheets incluyendo el lugar
-        const urlDeGoogleScript = "https://script.google.com/macros/s/AKfycbwZNlEMr6tllSdmdIGXURibabmWpxqZ1FjrLJzrC2h5zXNWQjXj4-uBMR7lrTPFgUK6/exec";
+        const urlDeGoogleScript = "https://script.google.com/macros/s/AKfycbwB_bzoYUP5nBFqq6q5zP9EmiGhPh01zsQUKKYrqQHVjNmOavEbxsUQ8un8Gj7MV8pv/exec";
         
         console.log("Enviando datos a Google..."); // <--- CHIVATO 1
 
@@ -188,10 +188,13 @@ app.post('/api/crear-pago', async (req, res) => {
         const fechaActual = new Date().toLocaleDateString('es-MX');
 
         if (formato === 'digital') {
-            const urlDeGoogleScript = "https://script.google.com/macros/s/AKfycbwZNlEMr6tllSdmdIGXURibabmWpxqZ1FjrLJzrC2h5zXNWQjXj4-uBMR7lrTPFgUK6/exec";
+            const urlDeGoogleScript = "https://script.google.com/macros/s/AKfycbwB_bzoYUP5nBFqq6q5zP9EmiGhPh01zsQUKKYrqQHVjNmOavEbxsUQ8un8Gj7MV8pv/exec";
 
-            await fetch(urlDeGoogleScript, {
+            console.log("Enviando datos a Google desde crear-pago...");
+
+            const respuestaGoogle = await fetch(urlDeGoogleScript, {
                 method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     idUnico: idUnico,
                     codigoDR: codigoDR,
@@ -201,9 +204,12 @@ app.post('/api/crear-pago', async (req, res) => {
                     fecha: fechaActual,
                     email: emailComprador,
                     telefono: telefonoComprador,
-                    lugar: lugar // <-- SE ENVÍA A GOOGLE SHEETS
+                    lugar: lugar || 'N/A'
                 })
             });
+            
+            const textoGoogle = await respuestaGoogle.text();
+            console.log("Google Respondió en crear-pago:", textoGoogle);
         }
 
         await Ticket.create({
