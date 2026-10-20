@@ -117,8 +117,8 @@ app.post('/api/admin/generar-boleto', async (req, res) => {
     // Se incluye 'lugar' aquí para que la ruta manual no lo ignore:
     const { passwordAdmin, tipoBoleto, formato, nombreComprador, telefonoComprador, emailComprador, lugar } = req.body;
 
-    if (passwordAdmin !== 'TORRES6') {
-        return res.status(401).json({ error: 'Contraseña incorrecta. Usa: TORRES6' });
+    if (passwordAdmin !== 'NIGHTBEAR2026') {
+        return res.status(401).json({ error: 'Contraseña incorrecta' });
     }
 
     try {
