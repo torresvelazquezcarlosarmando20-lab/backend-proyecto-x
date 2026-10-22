@@ -114,7 +114,6 @@ app.get('/api/verificar-pago/:codigo', async (req, res) => {
 // RUTA PARA GENERACIÓN MANUAL DE BOLETOS (WhatsApp)
 // 
 app.post('/api/admin/generar-boleto', async (req, res) => {
-    // Se incluye 'lugar' aquí para que la ruta manual no lo ignore:
     const { passwordAdmin, tipoBoleto, formato, nombreComprador, telefonoComprador, emailComprador, lugar } = req.body;
 
     if (passwordAdmin !== 'NIGHTBEAR2026') {
@@ -126,7 +125,6 @@ app.post('/api/admin/generar-boleto', async (req, res) => {
         const codigoDR = `DR-${Math.floor(100000 + Math.random() * 900000)}`;
         const fechaActual = new Date().toLocaleDateString('es-MX');
 
-        // 1. Guardar en MongoDB con pagado: true e incluir el lugar
         await Ticket.create({
             idBoleto: idUnico,
             codigoDR: codigoDR,
@@ -137,14 +135,14 @@ app.post('/api/admin/generar-boleto', async (req, res) => {
             lugar: lugar || 'N/A',
             pagado: true
         });
-// 2. Enviar los datos directamente a Google Sheets incluyendo el lugar
+
         const urlDeGoogleScript = "https://script.google.com/macros/s/AKfycbwB_bzoYUP5nBFqq6q5zP9EmiGhPh01zsQUKKYrqQHVjNmOavEbxsUQ8un8Gj7MV8pv/exec";
         
-        console.log("Enviando datos a Google..."); // <--- CHIVATO 1
+        console.log("Enviando datos a Google...");
 
         const respuestaGoogle = await fetch(urlDeGoogleScript, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' }, // <--- AGREGADO CRÍTICO
+            headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
                 idUnico: idUnico,
                 codigoDR: codigoDR,
@@ -159,7 +157,7 @@ app.post('/api/admin/generar-boleto', async (req, res) => {
         });
 
         const textoGoogle = await respuestaGoogle.text();
-        console.log("Google Respondió:", textoGoogle); // <--- CHIVATO 2
+        console.log("Google Respondió:", textoGoogle);
 
         const enlaceBoleto = `https://nightbearproductions.netlify.app/exito.html?codigo=${codigoDR}&tipo=${encodeURIComponent(tipoBoleto)}&lugar=${encodeURIComponent(lugar || '')}`;
         res.json({ exito: true, codigoDR, enlaceBoleto });
@@ -169,18 +167,36 @@ app.post('/api/admin/generar-boleto', async (req, res) => {
         res.status(500).json({ error: 'Fallo al generar el boleto' });
     }
 });
+
 app.post('/api/crear-pago', async (req, res) => {
     const { tipoBoleto, cantidad, formato, nombreComprador, telefonoComprador, emailComprador, lugar } = req.body;
     
-    let precio = 15000; // Por defecto General Fase 1: 150.00 MXN
+    let precio = 25000; // Por defecto Individual: $250.00 MXN
     const tipoLower = tipoBoleto.toLowerCase();
 
-    if (tipoLower.includes('mesa') && tipoLower.includes('general')) { precio = 190000; } 
-    else if (tipoLower.includes('mesa') && tipoLower.includes('vip')) { precio = 370000; } 
-    else if (tipoLower.includes('mesa') && tipoLower.includes('midnight')) { precio = 400000; } 
-    else if (tipoLower.includes('midnight')) { precio = 40000; } 
-    else if (tipoLower.includes('vip')) { precio = 30000; } 
-    else if (tipoLower.includes('general')) { precio = 15000; }
+    // Lógica actualizada de precios (multiplicados por 100 para centavos de Stripe)
+    if (tipoLower.includes('mesa') || tipoLower.includes('zona')) {
+        if (tipoLower.includes('general')) {
+            if (tipoLower.includes('final')) precio = 230000; // Zona general 2300
+            else precio = 210000; // Zona general 2100 fase 2
+        } else if (tipoLower.includes('vip')) {
+            if (tipoLower.includes('final')) precio = 460000; // Zona vip 4600
+            else precio = 400000; // Zona vip 4000 fase 2
+        } else if (tipoLower.includes('midnight') || tipoLower.includes('pass')) {
+            if (tipoLower.includes('final')) precio = 500000; // Zona Midnight Pass 5000
+            else precio = 480000; // Zona Midnight Pass 4800 fase 2
+        }
+    } else {
+        // Entradas individuales
+        if (tipoLower.includes('midnight') || tipoLower.includes('menbers')) {
+            precio = 50000; // Midnight Menbers 500
+        } else if (tipoLower.includes('vip')) {
+            if (tipoLower.includes('final')) precio = 46000; // VIP individual fase FINAL 460
+            else precio = 42000; // VIP individual fase 2 420
+        } else {
+            precio = 25000; // Individual 250
+        }
+    }
 
     try {
         const idUnico = uuidv4().substring(0, 8).toUpperCase();
@@ -219,7 +235,7 @@ app.post('/api/crear-pago', async (req, res) => {
             nombreComprador: nombreComprador,
             telefonoComprador: telefonoComprador,
             emailComprador: emailComprador,
-            lugar: lugar, // <-- SE GUARDA EN MONGODB
+            lugar: lugar, 
             pagado: false
         });
 
